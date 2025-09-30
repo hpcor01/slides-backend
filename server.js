@@ -1,68 +1,63 @@
-require("dotenv").config();
 const express = require("express");
+const mongoose = require("mongoose");
 const cors = require("cors");
-const { MongoClient } = require("mongodb");
+require("dotenv").config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const MONGO_URI = process.env.MONGO_URI;
-const DB_NAME = "dbSlides";
-const COLLECTION = "colTema";
+// Conexão com MongoDB
+mongoose.connect(process.env.MONGO_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log("✅ Conectado ao MongoDB"))
+.catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err));
 
-if (!MONGO_URI) {
-  console.error("❌ ERRO: defina MONGO_URI nas variáveis de ambiente.");
-  process.exit(1);
-}
+// Modelo Slide
+const slideSchema = new mongoose.Schema({
+  assunto: String,
+  texto: String,
+  autor: { type: String, default: "Autor Teste" },
+  dataHora: { type: Date, default: Date.now }
+});
 
-const client = new MongoClient(MONGO_URI);
+const Slide = mongoose.model("Slide", slideSchema);
 
-async function start() {
+// Rota para cadastrar slide
+app.post("/api/slides", async (req, res) => {
   try {
-    await client.connect();
-    console.log("✅ Conectado ao MongoDB Atlas");
+    const { assunto, texto } = req.body;
 
-    const db = client.db(DB_NAME);
-    const colTema = db.collection(COLLECTION);
+    if (!assunto || !texto) {
+      return res.status(400).json({ error: "Assunto e texto são obrigatórios" });
+    }
 
-    app.get("/api/slides", async (_req, res) => {
-      try {
-        const docs = await colTema.find({}).sort({ dataHora: -1 }).toArray();
-        res.json(docs);
-      } catch (err) {
-        res.status(500).json({ error: "Erro ao buscar slides" });
-      }
-    });
+    const novoSlide = new Slide({ assunto, texto });
+    await novoSlide.save();
 
-    app.post("/api/slides", async (req, res) => {
-      try {
-        const { assunto, texto } = req.body;
-        if (!assunto || !texto) return res.status(400).json({ error: "Assunto e texto obrigatórios" });
-
-        const novo = {
-          autor: "Autor Teste",
-          assunto,
-          texto,
-          dataHora: new Date()
-        };
-
-        const result = await colTema.insertOne(novo);
-        novo._id = result.insertedId;
-        res.status(201).json(novo);
-      } catch (err) {
-        res.status(500).json({ error: "Erro ao salvar slide" });
-      }
-    });
-
-    app.get("/", (_req, res) => res.send("Slides API OK"));
-
-    const PORT = process.env.PORT || 10000;
-    app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+    res.json(novoSlide);
   } catch (err) {
-    console.error("Erro na inicialização:", err);
-    process.exit(1);
+    res.status(500).json({ error: "Erro ao salvar slide" });
   }
-}
+});
 
-start();
+// Rota para listar slides (com limite inicial de 5)
+app.get("/api/slides", async (req, res) => {
+  try {
+    const limite = parseInt(req.query.limite) || 5;
+    const slides = await Slide.find().sort({ dataHora: -1 }).limit(limite);
+    res.json(slides);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar slides" });
+  }
+});
+
+// Teste rápido
+app.get("/", (req, res) => {
+  res.send("🚀 API de Slides rodando!");
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
