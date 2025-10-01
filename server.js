@@ -26,7 +26,7 @@ const slideSchema = new mongoose.Schema({
 const Slide = mongoose.model("Slide", slideSchema);
 
 // Rota para cadastrar slide
-app.post("/api/slides", async (req, res) => {
+app.post("/", async (req, res) => {
   try {
     const { assunto, texto } = req.body;
 
@@ -44,7 +44,7 @@ app.post("/api/slides", async (req, res) => {
 });
 
 // Rota para listar slides (com limite inicial de 5)
-app.get("/api/slides", async (req, res) => {
+app.get("/", async (req, res) => {
   try {
     const limite = parseInt(req.query.limite) || 5;
     const slides = await Slide.find().sort({ dataHora: -1 }).limit(limite);
@@ -61,3 +61,4 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+
