@@ -15,50 +15,59 @@ mongoose.connect(process.env.MONGO_URL, {
 .then(() => console.log("✅ Conectado ao MongoDB"))
 .catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err));
 
-// Modelo Slide
-const slideSchema = new mongoose.Schema({
-  assunto: String,
-  texto: String,
-  autor: { type: String, default: "Autor Teste" },
-  dataHora: { type: Date, default: Date.now }
-});
-
-const Slide = mongoose.model("Slide", slideSchema);
-
-// Rota para cadastrar slide
-app.post("/", async (req, res) => {
-  try {
-    const { assunto, texto } = req.body;
-
-    if (!assunto || !texto) {
-      return res.status(400).json({ error: "Assunto e texto são obrigatórios" });
-    }
-
-    const novoSlide = new Slide({ assunto, texto });
-    await novoSlide.save();
-
-    res.json(novoSlide);
-  } catch (err) {
-    res.status(500).json({ error: "Erro ao salvar slide" });
+// Modelo ColTema (collection colTema)
+const colTemaSchema = new mongoose.Schema({
+  slide: {
+    data: String,
+    assunto: String,
+    texto: String,
+    autor: { type: String, default: "Desconhecido" }
   }
 });
 
-// Rota para listar slides (com limite inicial de 5)
+const ColTema = mongoose.model("ColTema", colTemaSchema, "colTema");
+
+// Rota para cadastrar documento na colTema
+app.post("/", async (req, res) => {
+  try {
+    const { data, assunto, texto, autor } = req.body;
+
+    if (!data || !assunto || !texto) {
+      return res.status(400).json({ error: "Data, assunto e texto são obrigatórios" });
+    }
+
+    const novoDoc = new ColTema({
+      slide: {
+        data,
+        assunto,
+        texto,
+        autor: autor || "Desconhecido"
+      }
+    });
+
+    await novoDoc.save();
+
+    res.json(novoDoc);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao salvar registro em colTema" });
+  }
+});
+
+// Rota para listar documentos da colTema (com limite inicial de 5)
 app.get("/", async (req, res) => {
   try {
     const limite = parseInt(req.query.limite) || 5;
-    const slides = await Slide.find().sort({ dataHora: -1 }).limit(limite);
-    res.json(slides);
+    const docs = await ColTema.find().limit(limite);
+    res.json(docs);
   } catch (err) {
-    res.status(500).json({ error: "Erro ao buscar slides" });
+    res.status(500).json({ error: "Erro ao buscar registros na colTema" });
   }
 });
 
 // Teste rápido
-app.get("/", (req, res) => {
-  res.send("🚀 API de Slides rodando!");
+app.get("/status", (req, res) => {
+  res.send("🚀 API de ColTema rodando!");
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
-
